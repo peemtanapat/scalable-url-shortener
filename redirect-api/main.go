@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"database/sql"
 	"fmt"
 	"log"
@@ -11,13 +10,10 @@ import (
 
 	"github.com/gin-gonic/gin"
 	_ "github.com/lib/pq"
-	"github.com/redis/go-redis/v9"
 )
 
 // Global Redis client and Database connection
-var rdb *redis.Client
 var db *sql.DB
-var ctx = context.Background()
 
 // URL represents a URL mapping in the database
 type URL struct {
@@ -46,49 +42,6 @@ func initDatabase() {
 	}
 
 	fmt.Println("Connected to PostgreSQL successfully")
-}
-
-func initRedis() {
-	redisAddr := os.Getenv("REDIS_URL")
-	if redisAddr == "" {
-		redisAddr = "localhost:6379" // Default for local development
-	}
-
-	rdb = redis.NewClient(&redis.Options{
-		Addr:     redisAddr, // Redis server address
-		Password: "",        // No password
-		DB:       0,         // Default DB
-	})
-
-	// Test connection
-	_, err := rdb.Ping(ctx).Result()
-	if err != nil {
-		log.Fatalf("Failed to connect to Redis: %v", err)
-	}
-	fmt.Println("Connected to Redis successfully")
-
-	// Initialize counter if it doesn't exist or is less than desired starting value
-	startingValue := int64(56800235584)
-	currentVal, err := rdb.Get(ctx, "url_counter").Int64()
-	if err == redis.Nil || currentVal < startingValue {
-		// Key doesn't exist or current value is less than desired starting value
-		err = rdb.Set(ctx, "url_counter", startingValue-1, 0).Err()
-		if err != nil {
-			log.Fatalf("Failed to initialize Redis counter: %v", err)
-		}
-		log.Printf("Initialized Redis counter to start from %d", startingValue)
-	} else {
-		log.Printf("Redis counter already exists with value: %d", currentVal)
-	}
-}
-
-func getNextID() (int, error) {
-	// Use Redis INCR to get auto-incrementing ID
-	val, err := rdb.Incr(ctx, "url_counter").Result()
-	if err != nil {
-		return 0, fmt.Errorf("failed to get next ID from Redis: %v", err)
-	}
-	return int(val), nil
 }
 
 func healthHandler(c *gin.Context) {
@@ -127,7 +80,6 @@ func main() {
 	port := "8080"
 
 	initDatabase()
-	initRedis()
 
 	r := gin.Default()
 
@@ -156,6 +108,36 @@ func main() {
 
 		// Redirect to original URL
 		c.Redirect(http.StatusFound, urlData.OriginalURL)
+	})
+
+	// New endpoint to retrieve original URL by short code
+	r.GET("/api/v1/urls/:shortCode", func(c *gin.Context) {
+		shortCode := c.Param("shortCode")
+
+		if shortCode == "" {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "short code is required"})
+			return
+		}
+
+		// Get URL from database
+		urlData, err := getURLByShortCode(shortCode)
+		if err != nil {
+			if err.Error() == "short code not found" {
+				c.JSON(http.StatusNotFound, gin.H{"error": "short code not found"})
+			} else {
+				log.Printf("Failed to get URL from database: %v", err)
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to retrieve URL"})
+			}
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{
+			"id":          urlData.ID,
+			"originalUrl": urlData.OriginalURL,
+			"shortCode":   urlData.ShortCode,
+			"createdAt":   urlData.CreatedAt,
+			"updatedAt":   urlData.UpdatedAt,
+		})
 	})
 
 	// For testing

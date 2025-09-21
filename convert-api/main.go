@@ -255,61 +255,6 @@ func main() {
 		})
 	})
 
-	// New endpoint to retrieve original URL by short code
-	r.GET("/api/v1/urls/:shortCode", func(c *gin.Context) {
-		shortCode := c.Param("shortCode")
-
-		if shortCode == "" {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "short code is required"})
-			return
-		}
-
-		// Get URL from database
-		urlData, err := getURLByShortCode(shortCode)
-		if err != nil {
-			if err.Error() == "short code not found" {
-				c.JSON(http.StatusNotFound, gin.H{"error": "short code not found"})
-			} else {
-				log.Printf("Failed to get URL from database: %v", err)
-				c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to retrieve URL"})
-			}
-			return
-		}
-
-		c.JSON(http.StatusOK, gin.H{
-			"id":          urlData.ID,
-			"originalUrl": urlData.OriginalURL,
-			"shortCode":   urlData.ShortCode,
-			"createdAt":   urlData.CreatedAt,
-			"updatedAt":   urlData.UpdatedAt,
-		})
-	})
-
-	// Redirect endpoint (for actual URL shortening usage)
-	r.GET("/:shortCode", func(c *gin.Context) {
-		shortCode := c.Param("shortCode")
-
-		if shortCode == "" {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "short code is required"})
-			return
-		}
-
-		// Get URL from database
-		urlData, err := getURLByShortCode(shortCode)
-		if err != nil {
-			if err.Error() == "short code not found" {
-				c.JSON(http.StatusNotFound, gin.H{"error": "short code not found"})
-			} else {
-				log.Printf("Failed to get URL from database: %v", err)
-				c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to retrieve URL"})
-			}
-			return
-		}
-
-		// Redirect to original URL
-		c.Redirect(http.StatusMovedPermanently, urlData.OriginalURL)
-	})
-
 	// For testing
 	r.GET("/api/ping", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{
