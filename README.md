@@ -112,28 +112,7 @@ Returns service health status.
 
 ## 🏗️ Service Architecture
 
-```
-┌─────────────────┐
-│   Kong Gateway  │ :8000
-└─────────┬───────┘
-          │
-    ┌─────▼─────┐         ┌─────────────┐
-    │  HAProxy  │ :8080   │   HAProxy   │ :8081
-    │Convert LB │         │ Redirect LB │
-    └─────┬─────┘         └─────┬───────┘
-          │                     │
-   ┌──────▼──────┐       ┌──────▼──────┐
-   │Convert API  │       │Redirect API │
-   │(2 replicas) │       │(4 replicas) │
-   └──────┬──────┘       └──────┬──────┘
-          │                     │
-          └─────────┬───────────┘
-                    │
-        ┌───────────▼───────────┐
-        │     PostgreSQL       │ :5432
-        │       & Redis        │ :6379
-        └─────────────────────┘
-```
+![Service Architecture Diagram](./.readme/system-arch-v1.png)
 
 ## 🔧 Configuration
 
@@ -244,27 +223,6 @@ curl -I http://localhost:8000/{shortCode}
 - **Redis Persistence**: AOF enabled for durability
 - **Load Balancing**: Multiple replicas with health checks
 - **Connection Pooling**: Built into Go database drivers
-
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Add tests if applicable
-5. Submit a pull request
-
-## 📄 License
-
-This project is licensed under the MIT License - see the LICENSE file for details.
-
-## 🙋‍♂️ Support
-
-For questions or issues:
-
-1. Check the health endpoints
-2. Review service logs
-3. Monitor Redis Commander
-4. Create an issue on GitHub
 
 ## 🔮 Future Enhancements
 
