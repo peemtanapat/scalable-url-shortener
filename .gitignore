@@ -1,0 +1,126 @@
+# macOS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Go
+# Binaries for programs and plugins
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Test binary, built with `go test -c`
+*.test
+
+# Output of the go coverage tool, specifically when used with LiteIDE
+*.out
+
+# Dependency directories (remove the comment below to include it)
+# vendor/
+
+# Go workspace file
+go.work
+
+# Go build artifacts
+convert-api/convert-api
+redirect-api/redirect-api
+global-counter/global-counter
+
+# Docker
+.dockerignore
+docker-compose.override.yml
+.docker/
+
+# Kubernetes
+*.kubeconfig
+kubeconfig
+.kube/
+
+# IDE and Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Logs
+*.log
+logs/
+*.logs
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Coverage directory used by tools like istanbul
+coverage/
+*.lcov
+
+# nyc test coverage
+.nyc_output
+
+# Environment variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.temp
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Redis dump files
+dump.rdb
+
+# Load balancer logs
+load-balancer/*.log
+
+# Certificate files
+*.pem
+*.key
+*.crt
+*.csr
+
+# Backup files
+*.bak
+*.backup
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Linux
+*~
+
+# Miscellaneous
+.cache/
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
