@@ -3,32 +3,22 @@ services:
   - name: convert-api
     url: http://lb-convert-api:8080
     routes:
-      # for POC
-      - name: convert-api-ping
-        paths:
-          - /api/ping
-        strip_path: false
-      - name: convert-api-health
-        paths:
-          - /api/health
-        strip_path: false
       - name: convert-api
         paths:
           - /api/v1/urls
         methods:
           - POST
         strip_path: false
+      - name: ping
+        paths:
+          - /api/ping
+        strip_path: false
   - name: redirect-api
     url: http://lb-redirect-api:8081
     routes:
-      - name: redirect-api-health
-        paths:
-          - /api/health
-        methods:
-          - GET
       - name: redirect-api
         paths:
-          - /{short_code}
+          - ~/(?<shortCode>[a-zA-Z0-9]+)$
         methods:
           - GET
         strip_path: false
