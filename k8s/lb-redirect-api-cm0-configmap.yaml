@@ -1,0 +1,36 @@
+apiVersion: v1
+data:
+  haproxy.redirect-api.cfg: |
+    global
+      stats socket /var/run/api.sock user haproxy group haproxy mode 660 level admin expose-fd listeners
+      log stdout format raw local0 info
+
+    defaults
+      mode http
+      log global
+      option httplog
+      log-format "%ci:%cp -> %si:%sp [%tr] %ST %B bytes to %s"
+      option dontlognull
+      timeout connect 5s
+      timeout client 20s
+      timeout server 20s
+
+    frontend http_frontend
+      bind *:8080
+      default_backend redirect-api
+
+    backend redirect-api
+      balance roundrobin
+      option httpchk GET /api/health
+      default-server inter 10s fall 3 rise 2
+      server redirect-api-1 url-shortener-redirect-api-1:8080 check
+      server redirect-api-2 url-shortener-redirect-api-2:8080 check
+      server redirect-api-3 url-shortener-redirect-api-3:8080 check
+      server redirect-api-4 url-shortener-redirect-api-4:8080 check
+kind: ConfigMap
+metadata:
+  annotations:
+    use-subpath: "true"
+  labels:
+    io.kompose.service: lb-redirect-api
+  name: lb-redirect-api-cm0

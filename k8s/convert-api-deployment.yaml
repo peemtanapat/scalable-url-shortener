@@ -1,0 +1,35 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  annotations:
+    kompose.cmd: kompose convert -f docker-compose.yml
+    kompose.version: 1.37.0 (HEAD)
+  labels:
+    io.kompose.service: convert-api
+  name: convert-api
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      io.kompose.service: convert-api
+  template:
+    metadata:
+      annotations:
+        kompose.cmd: kompose convert -f docker-compose.yml
+        kompose.version: 1.37.0 (HEAD)
+      labels:
+        io.kompose.service: convert-api
+    spec:
+      containers:
+        - env:
+            - name: DATABASE_URL
+              value: postgres://postgres:password@postgres:5432/urlshortener?sslmode=disable
+            - name: INSTANCE_ID
+            - name: REDIS_URL
+              value: redis:6379
+          image: convert-api
+          name: convert-api
+          ports:
+            - containerPort: 8080
+              protocol: TCP
+      restartPolicy: Always

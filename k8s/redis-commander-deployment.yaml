@@ -1,0 +1,36 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  annotations:
+    kompose.cmd: kompose convert -f docker-compose.yml
+    kompose.version: 1.37.0 (HEAD)
+  labels:
+    io.kompose.service: redis-commander
+  name: redis-commander
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      io.kompose.service: redis-commander
+  template:
+    metadata:
+      annotations:
+        kompose.cmd: kompose convert -f docker-compose.yml
+        kompose.version: 1.37.0 (HEAD)
+      labels:
+        io.kompose.service: redis-commander
+    spec:
+      containers:
+        - env:
+            - name: HTTP_PASSWORD
+              value: admin
+            - name: HTTP_USER
+              value: admin
+            - name: REDIS_HOSTS
+              value: local:redis:6379
+          image: rediscommander/redis-commander:latest
+          name: redis-web-console
+          ports:
+            - containerPort: 8081
+              protocol: TCP
+      restartPolicy: Always

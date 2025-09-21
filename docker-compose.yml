@@ -1,0 +1,140 @@
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: postgres-urlshortener
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_DB=urlshortener
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=password
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./convert-api/schema.sql:/docker-entrypoint-initdb.d/schema.sql
+    networks:
+      - url-shortener-backend-nw
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: redis-counter
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes
+    volumes:
+      - redis-data:/data
+    networks:
+      - url-shortener-backend-nw
+
+  redis-commander:
+    image: rediscommander/redis-commander:latest
+    container_name: redis-web-console
+    restart: unless-stopped
+    ports:
+      - "8088:8081"
+    environment:
+      - REDIS_HOSTS=local:redis:6379
+      - HTTP_USER=admin
+      - HTTP_PASSWORD=admin
+    depends_on:
+      - redis
+    networks:
+      - url-shortener-backend-nw
+
+  convert-api:
+    build: ./convert-api
+    ports:
+      - "8080" # API internal port
+    environment:
+      - INSTANCE_ID=${HOSTNAME}
+      - REDIS_URL=redis:6379
+      - DATABASE_URL=postgres://postgres:password@postgres:5432/urlshortener?sslmode=disable
+    deploy:
+      replicas: 2
+      restart_policy:
+        condition: any
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    networks:
+      - url-shortener-backend-nw
+
+  redirect-api:
+    build: ./redirect-api
+    ports:
+      - "8080" # API internal port
+    environment:
+      - INSTANCE_ID=${HOSTNAME}
+      - REDIS_URL=redis:6379
+      - DATABASE_URL=postgres://postgres:password@postgres:5432/urlshortener?sslmode=disable
+    deploy:
+      replicas: 4
+      restart_policy:
+        condition: any
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    networks:
+      - url-shortener-backend-nw
+
+  lb-convert-api:
+    image: haproxytech/haproxy-alpine:3.2.4
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./load-balancer/haproxy.convert-api.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
+    depends_on:
+      - convert-api
+    networks:
+      - url-shortener-backend-nw
+
+  lb-redirect-api:
+    image: haproxytech/haproxy-alpine:3.2.4
+    ports:
+      - "8081:8080"
+    volumes:
+      - ./load-balancer/haproxy.redirect-api.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
+    depends_on:
+      - redirect-api
+    networks:
+      - url-shortener-backend-nw
+
+  api-gateway:
+    image: kong:latest
+    container_name: kong-api-gateway
+    restart: on-failure
+    environment:
+      - KONG_DATABASE=off
+      - KONG_PROXY_LISTEN=0.0.0.0:8000
+      - KONG_ADMIN_LISTEN=0.0.0.0:8002
+      - KONG_DECLARATIVE_CONFIG=/etc/kong/kong.yml
+    ports:
+      - "8000:8000"
+      - "8002:8002"
+    volumes:
+      - ./api-gateway/kong.yml:/etc/kong/kong.yml:ro
+    depends_on:
+      - convert-api
+      - lb-convert-api
+    networks:
+      - url-shortener-backend-nw
+
+networks:
+  url-shortener-backend-nw:
+    driver: bridge
+
+volumes:
+  redis-data:
+    driver: local
+  postgres-data:
+    driver: local

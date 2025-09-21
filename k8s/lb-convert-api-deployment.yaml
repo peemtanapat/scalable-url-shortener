@@ -1,0 +1,43 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  annotations:
+    kompose.cmd: kompose convert -f docker-compose.yml
+    kompose.version: 1.37.0 (HEAD)
+  labels:
+    io.kompose.service: lb-convert-api
+  name: lb-convert-api
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      io.kompose.service: lb-convert-api
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      annotations:
+        kompose.cmd: kompose convert -f docker-compose.yml
+        kompose.version: 1.37.0 (HEAD)
+      labels:
+        io.kompose.service: lb-convert-api
+    spec:
+      containers:
+        - image: haproxytech/haproxy-alpine:3.2.4
+          name: lb-convert-api
+          ports:
+            - containerPort: 8080
+              protocol: TCP
+          volumeMounts:
+            - mountPath: /usr/local/etc/haproxy/haproxy.cfg
+              name: lb-convert-api-cm0
+              readOnly: true
+              subPath: haproxy.cfg
+      restartPolicy: Always
+      volumes:
+        - configMap:
+            items:
+              - key: haproxy.convert-api.cfg
+                path: haproxy.cfg
+            name: lb-convert-api-cm0
+          name: lb-convert-api-cm0

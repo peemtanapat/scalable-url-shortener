@@ -1,0 +1,40 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  annotations:
+    kompose.cmd: kompose convert -f docker-compose.yml
+    kompose.version: 1.37.0 (HEAD)
+  labels:
+    io.kompose.service: api-gateway
+  name: api-gateway
+spec:
+  containers:
+    - env:
+        - name: KONG_ADMIN_LISTEN
+          value: 0.0.0.0:8002
+        - name: KONG_DATABASE
+          value: "off"
+        - name: KONG_DECLARATIVE_CONFIG
+          value: /etc/kong/kong.yml
+        - name: KONG_PROXY_LISTEN
+          value: 0.0.0.0:8000
+      image: kong:latest
+      name: kong-api-gateway
+      ports:
+        - containerPort: 8000
+          protocol: TCP
+        - containerPort: 8002
+          protocol: TCP
+      volumeMounts:
+        - mountPath: /etc/kong/kong.yml
+          name: api-gateway-cm0
+          readOnly: true
+          subPath: kong.yml
+  restartPolicy: OnFailure
+  volumes:
+    - configMap:
+        items:
+          - key: kong.yml
+            path: kong.yml
+        name: api-gateway-cm0
+      name: api-gateway-cm0

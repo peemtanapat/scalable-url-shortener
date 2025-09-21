@@ -1,0 +1,10 @@
+apiVersion: v1
+data:
+  schema.sql: "-- URL shortener database schema\n\n-- Create URLs table\nCREATE TABLE IF NOT EXISTS urls (\n    id SERIAL PRIMARY KEY,\n    original_url TEXT NOT NULL,\n    short_code VARCHAR(10) NOT NULL UNIQUE,\n    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,\n    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP\n);\n\n-- Create index on short_code for fast lookups\nCREATE INDEX IF NOT EXISTS idx_urls_short_code ON urls(short_code);\n\n-- Create index on created_at for analytics/reporting\nCREATE INDEX IF NOT EXISTS idx_urls_created_at ON urls(created_at);\n\n-- Function to automatically update updated_at timestamp\nCREATE OR REPLACE FUNCTION update_updated_at_column()\nRETURNS TRIGGER AS $$\nBEGIN\n    NEW.updated_at = CURRENT_TIMESTAMP;\n    RETURN NEW;\nEND;\n$$ language 'plpgsql';\n\n-- Trigger to automatically update updated_at on row updates\nCREATE TRIGGER update_urls_updated_at \n    BEFORE UPDATE ON urls \n    FOR EACH ROW \n    EXECUTE FUNCTION update_updated_at_column();"
+kind: ConfigMap
+metadata:
+  annotations:
+    use-subpath: "true"
+  labels:
+    io.kompose.service: postgres
+  name: postgres-cm1

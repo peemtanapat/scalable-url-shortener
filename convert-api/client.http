@@ -1,0 +1,10 @@
+###
+GET http://localhost:8081/api/health
+###
+GET http://localhost:8081/api/ping
+###
+POST http://localhost:8081/api/v1/urls
+
+{
+  "originalUrl": "https://www.sit.kmutt.ac.th"
+}
