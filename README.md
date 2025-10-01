@@ -113,6 +113,7 @@ Returns service health status.
 ## 🏗️ Service Architecture
 
 ![Service Architecture Diagram](./.readme/system-arch-v1.png)
+![Service Architecture Diagram (AWS)](./.readme/system-arch-aws-v1.png)
 
 ## 🔧 Configuration
 
