@@ -36,6 +36,8 @@ func initDatabase() {
 		dbURL = "postgres://postgres:password@localhost:5432/urlshortener?sslmode=disable"
 	}
 
+	log.Printf("✅ dbURL: %v", dbURL)
+
 	var err error
 	db, err = sql.Open("postgres", dbURL)
 	if err != nil {
@@ -46,6 +48,10 @@ func initDatabase() {
 	if err = db.Ping(); err != nil {
 		log.Fatalf("Failed to ping database: %v", err)
 	}
+
+	db.SetMaxOpenConns(25) // Match PgBouncer expectations
+	db.SetMaxIdleConns(5)
+	db.SetConnMaxLifetime(5 * time.Minute)
 
 	fmt.Println("Connected to PostgreSQL successfully")
 
@@ -150,7 +156,7 @@ func generateShortCode(id int) string {
 	multiplier := 1000
 	combinedNumber := (id * multiplier) + randomSalt
 
-	fmt.Printf("\ncombinedNumber=%d\n", combinedNumber)
+	// fmt.Printf("\ncombinedNumber=%d\n", combinedNumber)
 
 	shortCode := encodeBase62(combinedNumber)
 
@@ -238,14 +244,14 @@ func main() {
 		// Save to PostgreSQL database
 		savedURL, err := saveURL(originalUrl, shortCode)
 		if err != nil {
-			log.Printf("Failed to save URL to database: %v", err)
+			log.Printf("🔥 Failed to save URL to database: %v", err)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to save URL"})
 			return
 		}
 
 		// Log the generated auto-incremental ID
-		log.Printf("auto-incremental ID: %d for URL: %s shortCode: %s, saved with DB ID: %d",
-			id, originalUrl, shortCode, savedURL.ID)
+		// log.Printf("auto-incremental ID: %d for URL: %s shortCode: %s, saved with DB ID: %d",
+		// 	id, originalUrl, shortCode, savedURL.ID)
 
 		c.JSON(http.StatusCreated, gin.H{
 			"shortUrl":    "http://localhost:8000/" + shortCode,

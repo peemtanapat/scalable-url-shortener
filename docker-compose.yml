@@ -4,23 +4,121 @@ services:
     container_name: postgres-urlshortener
     restart: unless-stopped
     ports:
-      - "5432:5432"
+      - "5433:5432"
     environment:
       - POSTGRES_DB=urlshortener
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=password
+    # Optimized PostgreSQL settings for high load
+    command: >
+      postgres 
+      -c max_connections=200
+      -c shared_buffers=256MB
+      -c effective_cache_size=1GB
+      -c maintenance_work_mem=64MB
+      -c checkpoint_completion_target=0.9
+      -c wal_buffers=16MB
+      -c default_statistics_target=100
+      -c random_page_cost=1.1
+      -c effective_io_concurrency=200
+      -c work_mem=4MB
+      -c min_wal_size=1GB
+      -c max_wal_size=4GB
+      -c max_worker_processes=8
+      -c max_parallel_workers_per_gather=4
+      -c max_parallel_workers=8
+      -c max_parallel_maintenance_workers=4
     volumes:
       - postgres-data:/var/lib/postgresql/data
       - ./convert-api/schema.sql:/docker-entrypoint-initdb.d/schema.sql
     networks:
       - url-shortener-backend-nw
+    # Faster health checks for quicker startup
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
-      interval: 30s
-      timeout: 10s
+      interval: 10s
+      timeout: 5s
       retries: 5
+    # Resource limits for M1 Pro
+    deploy:
+      resources:
+        limits:
+          cpus: "4.0"
+          memory: 4G
+        reservations:
+          cpus: "2.0"
+          memory: 2G
 
-  redis:
+  pgbouncer:
+    image: edoburu/pgbouncer:latest
+    container_name: pgbouncer-urlshortener
+    ports:
+      - "5432:5432"
+    environment:
+      DATABASE_URL: "postgres://postgres:password@postgres:5432/urlshortener"
+
+      # Core performance settings - OPTIMIZED for 14K RPS
+      POOL_MODE: transaction
+      DEFAULT_POOL_SIZE: 50 # Increased from 30
+      MAX_CLIENT_CONN: 1500 # Increased from 1000
+
+      # Connection management - OPTIMIZED
+      MIN_POOL_SIZE: 10 # Increased from 5
+      RESERVE_POOL_SIZE: 15 # Increased from 3 (30% of pool)
+      MAX_DB_CONNECTIONS: 0 # Unlimited
+
+      # Server configuration - OPTIMIZED
+      SERVER_RESET_QUERY: "DISCARD ALL"
+      SERVER_CHECK_QUERY: "SELECT 1"
+      SERVER_CHECK_DELAY: 10 # Reduced from 15 for faster detection
+
+      # Authentication - OPTIMIZED
+      AUTH_TYPE: plain
+
+      # Timeouts - OPTIMIZED for high throughput
+      SERVER_LIFETIME: 1800 # 30 minutes
+      SERVER_IDLE_TIMEOUT: 300 # 5 minutes
+      CLIENT_IDLE_TIMEOUT: 180 # 3 minutes (reduced from 300)
+
+      # Additional performance settings
+      QUERY_TIMEOUT: 30 # 30 seconds max query time
+      QUERY_WAIT_TIMEOUT: 10 # 10 seconds max wait for connection
+
+      # Admin configuration
+      ADMIN_USERS: admin
+      STATS_USERS: stats
+
+      # Logging - Reduced for performance
+      LOG_CONNECTIONS: 0 # Disabled for performance
+      LOG_DISCONNECTIONS: 0 # Disabled for performance
+      LOG_POOLER_ERRORS: 1
+      VERBOSE: 0
+
+      # SSL Configuration
+      CLIENT_TLS_SSLMODE: disable
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - url-shortener-backend-nw
+    # Resource limits
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 512M
+        reservations:
+          cpus: "0.5"
+          memory: 256M
+    # Health check for PgBouncer
+    healthcheck:
+      test:
+        ["CMD", "pg_isready", "-h", "localhost", "-p", "5432", "-U", "postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  redis-counter:
     image: redis:7-alpine
     container_name: redis-counter
     restart: unless-stopped
@@ -28,22 +126,49 @@ services:
       - "6379:6379"
     command: redis-server --appendonly yes
     volumes:
-      - redis-data:/data
+      - redis-data-counter:/data
     networks:
       - url-shortener-backend-nw
 
-  redis-commander:
+  redis-redirect:
+    image: redis:7-alpine
+    container_name: redis-redirect
+    restart: unless-stopped
+    ports:
+      - "6380:6379"
+    command: redis-server --appendonly yes
+    volumes:
+      - redis-data-redirect:/data
+    networks:
+      - url-shortener-backend-nw
+
+  redis-commander-counter:
     image: rediscommander/redis-commander:latest
-    container_name: redis-web-console
+    container_name: redis-web-console-counter
     restart: unless-stopped
     ports:
       - "8088:8081"
     environment:
-      - REDIS_HOSTS=local:redis:6379
+      - REDIS_HOSTS=local:redis-counter:6379
       - HTTP_USER=admin
       - HTTP_PASSWORD=admin
     depends_on:
-      - redis
+      - redis-counter
+    networks:
+      - url-shortener-backend-nw
+
+  redis-commander-redirect:
+    image: rediscommander/redis-commander:latest
+    container_name: redis-web-console-redirect
+    restart: unless-stopped
+    ports:
+      - "8089:8081"
+    environment:
+      - REDIS_HOSTS=local:redis-redirect:6379
+      - HTTP_USER=admin
+      - HTTP_PASSWORD=admin
+    depends_on:
+      - redis-redirect
     networks:
       - url-shortener-backend-nw
 
@@ -53,16 +178,16 @@ services:
       - "8080" # API internal port
     environment:
       - INSTANCE_ID=${HOSTNAME}
-      - REDIS_URL=redis:6379
-      - DATABASE_URL=postgres://postgres:password@postgres:5432/urlshortener?sslmode=disable
+      - REDIS_URL=redis-counter:6379
+      - DATABASE_URL=postgres://postgres:password@pgbouncer:5432/urlshortener?sslmode=disable
     deploy:
-      replicas: 2
+      replicas: 12
       restart_policy:
         condition: any
     depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
+      pgbouncer:
+        condition: service_started
+      redis-counter:
         condition: service_started
     networks:
       - url-shortener-backend-nw
@@ -73,16 +198,17 @@ services:
       - "8080" # API internal port
     environment:
       - INSTANCE_ID=${HOSTNAME}
-      - REDIS_URL=redis:6379
-      - DATABASE_URL=postgres://postgres:password@postgres:5432/urlshortener?sslmode=disable
+      - REDIS_URL=redis-redirect:6379
+      - DATABASE_URL=postgres://postgres:password@pgbouncer:5432/urlshortener?sslmode=disable
+      # - DATABASE_URL=postgres://postgres:password@pgbouncer:6432/urlshortener?sslmode=disable
     deploy:
-      replicas: 4
+      replicas: 15
       restart_policy:
         condition: any
     depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
+      pgbouncer:
+        condition: service_started
+      redis-redirect:
         condition: service_started
     networks:
       - url-shortener-backend-nw
@@ -134,7 +260,9 @@ networks:
     driver: bridge
 
 volumes:
-  redis-data:
+  redis-data-counter:
+    driver: local
+  redis-data-redirect:
     driver: local
   postgres-data:
     driver: local
