@@ -18,7 +18,7 @@ This URL shortener implements a distributed microservices architecture with the 
 ## 🏗️ Service Architecture
 
 ### On-prem version
-![Service Architecture Diagram](./.readme/system-arch-v1.png)
+![Service Architecture Diagram](./.readme/system-arch-on-prem-v2.png)
 
 ### On-AWS version
 ![Service Architecture Diagram (AWS)](./.readme/system-arch-aws-v1.png)
