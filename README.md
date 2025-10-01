@@ -14,6 +14,16 @@ This URL shortener implements a distributed microservices architecture with the 
 - **Kong**: API Gateway for routing and management
 - **Redis Commander**: Web-based Redis monitoring interface
 
+
+## 🏗️ Service Architecture
+
+### On-prem version
+![Service Architecture Diagram](./.readme/system-arch-v1.png)
+
+### On-AWS version
+![Service Architecture Diagram (AWS)](./.readme/system-arch-aws-v1.png)
+
+
 ## 🚀 Features
 
 - **High Availability**: Multiple replicas (2 convert-api, 4 redirect-api instances)
@@ -109,14 +119,6 @@ Returns a 302 redirect to the original URL.
 **GET** `http://localhost:8000/api/health`
 
 Returns service health status.
-
-## 🏗️ Service Architecture
-
-### On-prem version
-![Service Architecture Diagram](./.readme/system-arch-v1.png)
-
-### On-AWS version
-![Service Architecture Diagram (AWS)](./.readme/system-arch-aws-v1.png)
 
 ## 🔧 Configuration
 
