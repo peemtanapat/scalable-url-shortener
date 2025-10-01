@@ -112,7 +112,10 @@ Returns service health status.
 
 ## 🏗️ Service Architecture
 
+### On-prem version
 ![Service Architecture Diagram](./.readme/system-arch-v1.png)
+
+### On-AWS version
 ![Service Architecture Diagram (AWS)](./.readme/system-arch-aws-v1.png)
 
 ## 🔧 Configuration
